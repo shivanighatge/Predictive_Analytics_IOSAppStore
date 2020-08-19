@@ -1,0 +1,486 @@
+---
+title: "Predictive Analytics and Visualization for iOS  Mobile Apps"
+author: "Laxmi Prasanna Gundabolu , Rutuja Shinde , Shivani Ghatge , Vinaya Chinti"
+date: "5/8/2020"
+output: html_document
+---
+
+Import libraries
+```{r}
+library(tidyverse)
+library(lattice)
+library(tidyr)
+library(rpart)
+library(ggplot2)
+library(e1071)
+library(randomForest)
+library(naivebayes)
+library(magicfor)
+```
+
+
+Read the AppleStore.csv file
+```{r}
+options(scipen=999)
+appleratings<- read.csv("C:/Users/15714/Documents/GMU/OR-568/Final Project/data/AppleStore.csv")
+```
+
+
+Displays the first six rows of the dataset
+```{r}
+head(appleratings)
+```
+Summary of the data
+```{r}
+summary(appleratings)
+```
+Structure of the dataset
+```{r}
+str(appleratings)
+```
+Find null values in the dataset
+
+```{r}
+is.na(appleratings)
+```
+=== 1) Which application is most popular based on the rating of the application?
+=========Visualization for Top 10 Apps based on Total Rating===============
+
+```{r}
+sorted.data <- appleratings[order(-appleratings$rating_count_tot),]
+top10 <-head(sorted.data,10)
+
+#Top 10 Apps based on Total Rating
+
+ggplot() + geom_bar(aes(y = top10$rating_count_tot, x = top10$track_name), data = top10,fill = "cyan3",stat="identity")+
+  labs(x="Applications" , y="Total Rating Count")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  ggtitle("Top 10 Applications on the basis of Total Ratings")
+```
+ 
+ 
+ 
+The Top 10 most popular Apps based on the total rating count of the applications are Facebook being the most popular followed by Instagram, Clash of Clans, Temple Run, Candy Crush Saga, Bible, Pinterest,
+Spotify Music,Pandora-Music & Radio, and Angry Birds. Facebook has the highest number of 
+rating count of around 3000000 followed by Instagram and Clash of Clans which have
+a rating count of around 2000000.
+
+=======2) Do customers prefer paid applications or free applications?==========
+======================Visualization for prefernce of user ======================
+```{r}
+appleratings$paid_or_free <- ifelse(appleratings$price>0,'paid','free')
+counts <- table(appleratings$paid_or_free)
+barplot(counts, main="Distribution of Free and Paid Applications",
+        xlab="Free or Paid",
+        ylab="Frequency of the free and paid applications",
+        col="red")
+```
+
+
+
+From the visualization, it is clear that customers prefer free applications more than
+the paid applications as the number of people installing the free applications is around
+4000 and that for paid applications is around 3000.
+
+
+
+============3) Which genre of applications is mostly used by the users?=======
+
+
+==========Visualization for Top 10 genre of application used by user =======
+
+
+```{r}
+#code for getting frequency of genre types
+frequeny_genre = as.data.frame(table(appleratings$prime_genre))
+
+sorted.data <- frequeny_genre[order(-frequeny_genre$Freq),]
+top10 <-head(sorted.data,10)
+
+ggplot(top10, aes(x = Var1, y = Freq)) +
+  geom_bar(fill = "green", stat = "identity") +
+  geom_text(aes(label = Freq), vjust = -0.3) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  ggtitle("Top 10 Genre of Application used by users") + 
+  xlab("Application Genre")+
+  ylab("Frequency of apps")
+```
+
+
+
+ From the plot of top 10 Genre of application used by users we can say that games genre is most popular among the customers. Game genre has the has the highest frequency of usage of 3862 followed by Entertainment, Education and Photo & Video genre.
+
+===4) Does the price of the applications depend on the genre of the application?==
+
+```{r}
+appleratings<- read.csv("C:/Users/15714/Documents/GMU/OR-568/Final Project/data/AppleStore.csv")
+price_genre=data.frame("Price","Genre")
+
+
+magic_for(print, silent = TRUE)
+
+for(i in unique(appleratings$prime_genre))
+{
+  print(i)
+  newdata <- appleratings[ which(appleratings$prime_genre==i),]
+  average_price=mean(newdata$price)
+  average_price = round(average_price,2)
+  print(average_price)
+  price_genre=rbind(price_genre,list(average_price,i))
+  
+}
+#creating data frame and retrieving the values from fr loop
+price_genre=magic_result_as_dataframe()
+
+#deleting the duplicate values from the dataframe
+price_genre = subset(price_genre, !duplicated(subset(price_genre, select=-c(i))))
+price_genre
+sorted.data <- price_genre[order(-price_genre$average_price),]
+top10_avg <-head(sorted.data,10)
+
+#plotting the genre categories on x axis and average price on y-axis
+ggplot(top10, aes(x = top10_avg$i, y = top10_avg$average_price)) +
+  geom_bar(fill = "pink", stat = "identity") +
+  geom_text(aes(label = top10_avg$average_price), vjust = -0.3) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("Genres having high Average Price") + xlab("Genre") + ylab("Average Price of Genre(USD)")
+```
+
+
+It is true that the price of the application depends on the genre. From the visualization it is clear that applications with the medical genre has the highest average price of USD 8.78 and utilities has the least average price of USD 1.65.
+
+===5) Does the price of the applications increase with the size of the application? ===
+
+
+====Variation of the price of the applications increase with the size of the application for user ratings=====
+
+
+```{r}
+ggplot(data = appleratings) + 
+  geom_point(mapping = aes(x = appleratings$size_bytes, y = appleratings$price, color = user_rating))+
+  labs(x="Size in bytes" , y="Price")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  ggtitle("Variation of the price of the applications increase with the size for user rating")
+```
+ 
+ 
+No, the price does not affect the size of the application.The users tend to give more ratings to the application with less size.
+
+
+===================Hypothesis testing=========================
+
+Null Hypothesis H0 - The average user rating is equal to 3.5
+
+Alternate Hypothesis H1 - The average user rating is not equal to 3.5
+
+```{r}
+appleratings = read.csv("C:/Users/15714/Documents/GMU/OR-568/Final Project/data/AppleStore.csv")
+```
+
+
+calculating mean for user_rating 
+
+```{r}
+mean(appleratings$user_rating)
+```
+
+
+coverting ver variable into numeric
+
+```{r}
+appleratings$ver=as.numeric(as.integer(factor(appleratings$ver)))
+```
+
+calculating mean for ver variable 
+
+```{r}
+
+mean(appleratings$ver)
+```
+
+one sample t-test for user_rating and ver variables
+
+```{r}
+t.test(appleratings$user_rating, mu=3.5) 
+```
+
+The p-value we got is 0.132 if p-value > 0.05 then we accept null hypothesis stating that Average User_rating is 3.5 and reject alternative hypothesis.
+
+
+
+Null Hypothesis H0 : User rating is independent of the application version.
+
+Alternative Hypothesis H1 : User rating is dependent of the application version.
+
+Two sample t-test
+
+```{r}
+test2<-t.test(appleratings$user_rating,appleratings$ver,alternative="two.sided",mu=0,var.equal=F,conf.level=0.95)  
+test2
+```
+
+
+p-value we got in this hypothesis is less than 0.05, so we can reject null hypothesis which indicates that user rating and version are dependent on each other.
+
+
+Null Hypothesis : The average price of application is equal to 1.5$
+
+Null Hypothesis : The average price of application is is not equal to 1.5$
+
+one sample t test for price of the app
+
+```{r}
+t.test(appleratings$price, mu=1.5, conf.level = 0.95)
+```
+
+p-value we got in this hypothesis is less than 0.05, so we can reject null hypothesis which indicates that average price of application is not equal to 1.5$.
+
+
+
+Null Hypothesis H0 : Average number of supported devices is equal to 30
+
+Alternative Hypothesis H1 : Average number of supported devices is not equal to 30
+
+one sample t-test for supp_devices
+```{r}
+t.test(appleratings$sup_devices.num, mu=30, conf.level = 0.95)
+```
+
+
+p-value we got in this hypothesis is less than 0.05, so we can reject null hypothesis which indicates that average number of supported devices is not equal to 30.
+
+
+
+============Function to calculate Accuracies===================
+```{r}
+calculate_accuracy <- function(x){sum(diag(x)/(sum(rowSums(x)))) * 100}
+```
+
+==================Regression Algorithms===========
+
+Data Cleaning
+
+Read Data from the csv
+```{r}
+appleratings<- read.csv("C:/Users/15714/Documents/GMU/OR-568/Final Project/data/AppleStore.csv")
+```
+
+
+Taking Subset of the data
+```{r}
+appleratings <- subset( appleratings, select = -c(id,track_name,currency))
+head(appleratings)
+```
+
+
+Converting the columns to factors
+```{r}
+appleratings$prime_genre=as.numeric(as.integer(factor(appleratings$prime_genre)))
+appleratings$cont_rating=as.numeric(as.integer(factor(appleratings$cont_rating)))
+appleratings$ver=as.numeric(as.integer(factor(appleratings$ver)))
+```
+
+
+Splitting the data into 70-30 ratio
+```{r}
+index <- sample(2, nrow(appleratings),replace = TRUE, prob = c(0.7,0.3))
+trainapp <- appleratings[index==1,]
+head(trainapp)
+testapp <- appleratings[index==2,]
+head(testapp)
+```
+===========Linear Regression Model=============
+
+Linear Regression for user rating
+
+Fitting regression model on the data
+```{r}
+linearRegression=lm(user_rating ~.,data=trainapp)
+```
+
+
+extracting the model summary
+```{r}
+summary(linearRegression)
+```
+
+
+Predicting the ratings using the test data
+```{r}
+
+predictionforlm<-predict(linearRegression,testapp)
+```
+
+
+Forming a dataframe containing actual and predicted values.
+```{r}
+actuals_predslm <- data.frame(cbind(ActualRating=testapp$user_rating, PredictedRating=predictionforlm)) 
+print(actuals_predslm)
+```
+
+
+
+ploting the actual and the predicted values.
+```{r}
+plot((testapp$user_rating), predictionforlm,xlab="Actual Values",ylab="Predicted Values",
+     main="Plot of Actual Values vs Predicted Values for Linear Regression Model")
+```
+ 
+
+For the linear regression model we have got value of good R-square value , which shows that the model has fitted on the data well. From the model summary we can see that price, user_rating_ver, ver and ipadSc_urls.num have more influence on target variable than other features.
+ 
+
+===========Support Vector Machine ============
+
+======= SVM for the user ratings===========
+
+Fitting the SVM model
+```{r}
+userrating_svm <- svm(user_rating ~., data=trainapp)
+```
+
+
+summary of the model
+
+```{r}
+summary(userrating_svm)
+```
+
+predictions on the testing data 
+```{r}
+predictionsvm_userrating <- predict(userrating_svm, testapp)
+```
+
+
+forming dataframe for the actual and the predicted values 
+```{r}
+actuals_predssvm <- data.frame(cbind(ActualRating=testapp$user_rating, PredictedRating=predictionsvm_userrating)) 
+print(actuals_predssvm)
+```
+
+
+
+ploting the actual and the predicted values.
+```{r}
+plot((testapp$user_rating), predictionsvm_userrating,xlab="Actual Values",ylab="Predicted Values",
+     main="Plot of Actual Values vs Predicted Values for SVM Model")
+```
+
+=============Random Regression forest Algorithm============
+
+fitting the model 
+```{r}
+regressor = randomForest(as.factor(user_rating) ~.,
+                         data = trainapp,ntree = 500, mtry = 3, nPerm = 4, nodesize = 2,replace=T)
+```
+
+
+####### Variable importance plot ######
+```{r}
+varImpPlot(regressor)
+importance(regressor)
+```
+
+VarImp plot shows that rating_count_tot ,user_rating_ver , rating_count_ver ,ver and size_bytes are
+the best predictors for the model. 
+
+####### Prediction on test data ##############
+```{r}
+predict_regressiontree=predict(regressor,testapp,type ="class")
+confmatrix_svn_genre=table(predict_regressiontree,as.factor(testapp$user_rating))
+calculate_accuracy(confmatrix_svn_genre)
+```
+
+The model has performed good on the testing data , we got accuracy around 62.10% . 
+
+================Classification Algorithms=========
+
+Data Cleaning
+
+Read Data from the csv
+```{r}
+appleratings_clfy<- read.csv("C:/Users/15714/Documents/GMU/OR-568/Final Project/data/AppleStore.csv")
+```
+
+
+Taking Subset of the data
+```{r}
+appleratings_clfy <- subset( appleratings_clfy, select = -c(id,track_name,currency))
+head(appleratings_clfy)
+```
+
+
+Converting the columns to factors
+```{r}
+appleratings_clfy$cont_rating=as.numeric(as.integer(factor(appleratings_clfy$cont_rating)))
+appleratings_clfy$ver=as.numeric(as.integer(factor(appleratings_clfy$ver)))
+```
+
+
+Splitting the data into 70-30 ratio
+```{r}
+index <- sample(2, nrow(appleratings_clfy),replace = TRUE, prob = c(0.7,0.3))
+trainapp_clfy <- appleratings_clfy[index==1,]
+head(trainapp_clfy)
+testapp_clfy <- appleratings_clfy[index==2,]
+head(testapp_clfy)
+```
+
+
+===========Raandom Forest Classifier========================
+
+########## Random forest for genre  #####
+```{r}
+randomforest_genre1 <- randomForest(prime_genre ~ ., data = trainapp_clfy, ntree = 500, mtry=6,importance = TRUE)
+randomforest_genre1
+```
+From the model summary we have got an error of 40.34% . The error rate is high because we have 23 classes in the genre.
+
+
+Prediction on the testing data
+```{r}
+pred_randonforestgenre1 <- predict(randomforest_genre1,testapp_clfy , type = "class")
+confmatrix_randomf_genre=table(pred_randonforestgenre1,testapp_clfy$prime_genre)
+print(confmatrix_randomf_genre)
+calculate_accuracy(confmatrix_randomf_genre)
+
+```
+The model performed good on the testing data, we got accuracy around 58.87%.
+==================Support Vector Machine Classifier==================================================
+```{r}
+svm_genre <- svm(prime_genre ~ ., data=trainapp_clfy, 
+                 method="C-classification", kernal="radial", 
+                 gamma=0.1, cost=10)
+summary(svm_genre)
+```
+
+```{r}
+prediction_svm <- predict(svm_genre, testapp_clfy)
+confmatrix_svn_genre=table(prediction_svm,testapp_clfy$prime_genre)
+print(confmatrix_svn_genre)
+calculate_accuracy(confmatrix_svn_genre)
+```
+The accuracy we got for support vector machine is around 56.32%.
+===============Naive Bayes Classifier==============
+```{r}
+naive_bayes_classifier <- naive_bayes(prime_genre ~ .,data=trainapp_clfy, usekernel=T)
+summary(naive_bayes_classifier)
+
+```
+
+```{r}
+naive_prediction_test<-predict(naive_bayes_classifier,testapp_clfy)
+confmatrix_nb_genre=table(naive_prediction_test,testapp_clfy$prime_genre)
+print(confmatrix_nb_genre)
+calculate_accuracy(confmatrix_nb_genre)
+```
+The naive bayes algorithm has performed good and gave accuracy around 50.86%
+
+
+The Random forest algorithm has performed best on the testing data among all the classification models and naive bayes classification algorithm has the least accuracy.
+
+
+
+
+
+
